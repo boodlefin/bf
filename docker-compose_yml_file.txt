@@ -1,0 +1,70 @@
+version: '2.2'
+
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
+    container_name: es01
+    environment:
+    
+	 - node.name=es01
+      - transport.port=<port1>
+      - cluster.name=ecm-prod-elastic
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms4096m -Xmx4096m"
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.http.ssl.keystore.path=${CERTS_DIR}/es01/es01.p12
+      - xpack.security.http.ssl.truststore.path=${CERTS_DIR}/es01/es01.p12
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.keystore.path=${CERTS_DIR}/es01/es01.p12
+      - xpack.security.transport.ssl.truststore.path=${CERTS_DIR}/es01/es01.p12
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data:/usr/share/elasticsearch/data
+      - config:/usr/share/elasticsearch/config
+      - log:/usr/share/elasticsearch/logs
+    ports:
+      - 9216:9200
+      - <port1>:<port1>
+    networks:
+      - elastic
+    dns:
+      - es01
+
+    healthcheck:
+      test: curl -k -s https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      device: '/u01/es01/data'
+      o: bind
+  config:
+    driver: local
+    driver_opts:
+      type: none
+      device: '/u01/es01/config'
+      o: bind
+  log:
+    driver: local
+    driver_opts:
+      type: none
+      device: '/u01/es01/log'
+      o: bind
+
+networks:
+  elastic:
+    driver: overlay
+
